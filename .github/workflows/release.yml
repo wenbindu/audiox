@@ -1,0 +1,66 @@
+name: Release DMG
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build macOS universal DMG
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcode-select -p
+          swift --version
+
+      - name: Build universal DMG
+        run: |
+          chmod +x scripts/package_app.sh scripts/package_dmg.sh scripts/generate_icon.swift
+          scripts/package_dmg.sh universal
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          cp dist/AudioX-1.0.0-universal.dmg release/
+          cd release
+          shasum -a 256 AudioX-1.0.0-universal.dmg > SHA256SUMS
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioX-1.0.0-universal
+          path: |
+            release/AudioX-1.0.0-universal.dmg
+            release/SHA256SUMS
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          NOTES="AudioX macOS universal DMG.
+
+          Runtime:
+          - Xcode is not required.
+          - MP3/WAV/M4A/AAC work natively.
+          - OGG/OPUS/FLAC/P3 need FFmpeg installed for v1.0.0: brew install ffmpeg"
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" release/AudioX-1.0.0-universal.dmg release/SHA256SUMS --clobber
+          else
+            gh release create "$TAG_NAME" release/AudioX-1.0.0-universal.dmg release/SHA256SUMS \
+              --title "AudioX $TAG_NAME" \
+              --notes "$NOTES"
+          fi
+

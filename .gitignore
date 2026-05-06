@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# SwiftPM / build output
+.build/
+.swiftpm/
+DerivedData/
+
+# Xcode user state
+*.xcuserstate
+xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Local packaging output
+dist/
+release/
+*.app
+*.dmg
+*.dSYM/
+
+# Temporary iconset generated from Resources/new.png
+Resources/AppIcon.iconset/
+
+# Logs and local environment
+*.log
+.env
+.env.*
+

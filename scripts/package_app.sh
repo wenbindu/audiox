@@ -34,8 +34,10 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 ICON_FILE="$ROOT_DIR/Resources/AppIcon.icns"
 
 cd "$ROOT_DIR"
-mkdir -p "$ROOT_DIR/.build/module-cache"
-swift -module-cache-path "$ROOT_DIR/.build/module-cache" scripts/generate_icon.swift "$ICON_FILE" >/dev/null
+if [[ ! -f "$ICON_FILE" ]]; then
+    echo "Missing $ICON_FILE. Run scripts/generate_app_icon.sh first." >&2
+    exit 66
+fi
 swift build "${BUILD_ARGS[@]}" >&2
 BIN_DIR="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)"
 

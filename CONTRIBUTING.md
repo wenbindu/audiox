@@ -42,6 +42,7 @@ Build the current Mac app:
 构建当前机器架构的 App：
 
 ```bash
+scripts/generate_app_icon.sh
 scripts/package_app.sh
 ```
 
@@ -50,6 +51,7 @@ Build a universal macOS DMG:
 构建 universal macOS DMG：
 
 ```bash
+scripts/generate_app_icon.sh
 scripts/package_dmg.sh universal
 ```
 

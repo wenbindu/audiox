@@ -7,7 +7,9 @@ let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let outputURL = CommandLine.arguments.count > 1
     ? URL(fileURLWithPath: CommandLine.arguments[1])
     : root.appendingPathComponent("Resources/AppIcon.icns")
-let sourcePNGURL = root.appendingPathComponent("Resources/new.png")
+let sourcePNGURL = CommandLine.arguments.count > 2
+    ? URL(fileURLWithPath: CommandLine.arguments[2])
+    : root.appendingPathComponent("Resources/new.png")
 let iconsetURL = outputURL
     .deletingLastPathComponent()
     .appendingPathComponent("AppIcon.iconset")
@@ -61,12 +63,15 @@ try? FileManager.default.removeItem(at: iconsetURL)
 print(outputURL.path)
 
 func drawIcon(size: Int, sourcePNGURL: URL) -> NSImage {
-    if FileManager.default.fileExists(atPath: sourcePNGURL.path),
-       let sourceImage = NSImage(contentsOf: sourcePNGURL) {
-        return renderSourceIcon(sourceImage, size: size)
+    guard FileManager.default.fileExists(atPath: sourcePNGURL.path) else {
+        fatalError("Missing icon source: \(sourcePNGURL.path)")
     }
 
-    return renderFallbackIcon(size: size)
+    guard let sourceImage = NSImage(contentsOf: sourcePNGURL) else {
+        fatalError("Cannot read icon source: \(sourcePNGURL.path)")
+    }
+
+    return renderSourceIcon(sourceImage, size: size)
 }
 
 func renderSourceIcon(_ sourceImage: NSImage, size: Int) -> NSImage {
@@ -103,142 +108,6 @@ func renderSourceIcon(_ sourceImage: NSImage, size: Int) -> NSImage {
     let image = NSImage(size: NSSize(width: size, height: size))
     image.addRepresentation(rep)
     return image
-}
-
-func renderFallbackIcon(size: Int) -> NSImage {
-    let rep = NSBitmapImageRep(
-        bitmapDataPlanes: nil,
-        pixelsWide: size,
-        pixelsHigh: size,
-        bitsPerSample: 8,
-        samplesPerPixel: 4,
-        hasAlpha: true,
-        isPlanar: false,
-        colorSpaceName: .deviceRGB,
-        bytesPerRow: 0,
-        bitsPerPixel: 0
-    )!
-    rep.size = NSSize(width: size, height: size)
-
-    NSGraphicsContext.saveGraphicsState()
-    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-    defer { NSGraphicsContext.restoreGraphicsState() }
-
-    let rect = NSRect(x: 0, y: 0, width: size, height: size)
-    NSColor.clear.setFill()
-    rect.fill()
-    NSGraphicsContext.current?.imageInterpolation = .high
-
-    let background = NSBezierPath(
-        roundedRect: rect.insetBy(dx: CGFloat(size) * 0.035, dy: CGFloat(size) * 0.035),
-        xRadius: CGFloat(size) * 0.22,
-        yRadius: CGFloat(size) * 0.22
-    )
-    NSColor(calibratedRed: 0.76, green: 0.43, blue: 0.30, alpha: 1).setFill()
-    background.fill()
-
-    let glow = NSBezierPath(ovalIn: NSRect(
-        x: CGFloat(size) * 0.08,
-        y: CGFloat(size) * 0.58,
-        width: CGFloat(size) * 0.58,
-        height: CGFloat(size) * 0.34
-    ))
-    NSColor(calibratedRed: 0.96, green: 0.77, blue: 0.58, alpha: 0.33).setFill()
-    glow.fill()
-
-    let baseShadow = NSBezierPath(
-        roundedRect: NSRect(
-            x: CGFloat(size) * 0.19,
-            y: CGFloat(size) * 0.22,
-            width: CGFloat(size) * 0.62,
-            height: CGFloat(size) * 0.52
-        ),
-        xRadius: CGFloat(size) * 0.12,
-        yRadius: CGFloat(size) * 0.12
-    )
-    NSColor(calibratedWhite: 0.10, alpha: 0.16).setFill()
-    baseShadow.fill()
-
-    drawSpeaker(size: CGFloat(size))
-    drawWaveform(size: CGFloat(size))
-    drawHighlight(size: CGFloat(size))
-
-    let image = NSImage(size: NSSize(width: size, height: size))
-    image.addRepresentation(rep)
-    return image
-}
-
-func drawSpeaker(size: CGFloat) {
-    let bodyRect = NSRect(
-        x: size * 0.21,
-        y: size * 0.36,
-        width: size * 0.18,
-        height: size * 0.24
-    )
-    let body = NSBezierPath(roundedRect: bodyRect, xRadius: size * 0.045, yRadius: size * 0.045)
-
-    let horn = NSBezierPath()
-    horn.move(to: NSPoint(x: size * 0.37, y: size * 0.37))
-    horn.line(to: NSPoint(x: size * 0.55, y: size * 0.25))
-    horn.line(to: NSPoint(x: size * 0.55, y: size * 0.71))
-    horn.line(to: NSPoint(x: size * 0.37, y: size * 0.59))
-    horn.close()
-
-    NSColor(calibratedRed: 0.98, green: 0.88, blue: 0.73, alpha: 1).setFill()
-    body.fill()
-    horn.fill()
-
-    NSColor(calibratedRed: 0.33, green: 0.18, blue: 0.14, alpha: 0.35).setStroke()
-    body.lineWidth = size * 0.014
-    horn.lineWidth = size * 0.014
-    body.stroke()
-    horn.stroke()
-}
-
-func drawWaveform(size: CGFloat) {
-    let path = NSBezierPath()
-    path.lineCapStyle = .round
-    path.lineJoinStyle = .round
-    path.lineWidth = size * 0.035
-
-    let points = [
-        NSPoint(x: size * 0.59, y: size * 0.42),
-        NSPoint(x: size * 0.64, y: size * 0.58),
-        NSPoint(x: size * 0.70, y: size * 0.32),
-        NSPoint(x: size * 0.76, y: size * 0.66),
-        NSPoint(x: size * 0.82, y: size * 0.44)
-    ]
-
-    path.move(to: points[0])
-    for point in points.dropFirst() {
-        path.line(to: point)
-    }
-
-    NSColor(calibratedRed: 0.24, green: 0.12, blue: 0.10, alpha: 0.94).setStroke()
-    path.stroke()
-
-    let dot = NSBezierPath(ovalIn: NSRect(
-        x: size * 0.615,
-        y: size * 0.675,
-        width: size * 0.06,
-        height: size * 0.06
-    ))
-    NSColor(calibratedRed: 1.00, green: 0.90, blue: 0.71, alpha: 0.92).setFill()
-    dot.fill()
-}
-
-func drawHighlight(size: CGFloat) {
-    let highlight = NSBezierPath()
-    highlight.move(to: NSPoint(x: size * 0.18, y: size * 0.76))
-    highlight.curve(
-        to: NSPoint(x: size * 0.49, y: size * 0.83),
-        controlPoint1: NSPoint(x: size * 0.25, y: size * 0.88),
-        controlPoint2: NSPoint(x: size * 0.39, y: size * 0.87)
-    )
-    highlight.lineCapStyle = .round
-    highlight.lineWidth = size * 0.022
-    NSColor(calibratedRed: 1.00, green: 0.87, blue: 0.68, alpha: 0.40).setStroke()
-    highlight.stroke()
 }
 
 func writePNG(image: NSImage, to url: URL) throws {

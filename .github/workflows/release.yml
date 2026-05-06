@@ -30,7 +30,8 @@ jobs:
 
       - name: Build universal DMG
         run: |
-          chmod +x scripts/package_app.sh scripts/package_dmg.sh scripts/generate_icon.swift
+          chmod +x scripts/package_app.sh scripts/package_dmg.sh scripts/generate_icon.swift scripts/generate_app_icon.sh scripts/generate_dmg_background.swift
+          scripts/generate_app_icon.sh
           VERSION="${GITHUB_REF_NAME#v}"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.tag }}"

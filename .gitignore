@@ -23,9 +23,9 @@ release/
 
 # Temporary iconset generated from Resources/new.png
 Resources/AppIcon.iconset/
+Resources/dmg-background.png
 
 # Logs and local environment
 *.log
 .env
 .env.*
-

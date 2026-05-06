@@ -6,7 +6,7 @@ Requirements:
 
 依赖：
 
-- macOS 13+
+- macOS 26.0+
 - Xcode Command Line Tools or Xcode
 - Swift 6.1+
 - FFmpeg for fallback formats

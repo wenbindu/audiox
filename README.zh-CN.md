@@ -15,6 +15,8 @@ AudioX 是一个 macOS 音频播放器，支持通用音频和 xiaozhi/乐鑫 `.
 
 ## 安装
 
+需要 macOS 26.0 或更高版本。
+
 从 GitHub Releases 页面下载最新 DMG，打开后将 `AudioX.app` 拖入 `Applications`。
 
 已打包 App 不需要安装 Xcode。

@@ -15,6 +15,8 @@ AudioX is a macOS audio player for common audio formats and xiaozhi/ESP `.p3` fi
 
 ## Installation
 
+Requires macOS 26.0 or later.
+
 Download the latest DMG from the GitHub Releases page, open it, and drag `AudioX.app` into `Applications`.
 
 The packaged app does not require Xcode.

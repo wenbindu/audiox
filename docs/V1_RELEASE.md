@@ -9,7 +9,7 @@ AudioX v1 是一个 macOS 音频项目播放器，支持通用音频和 xiaozhi/
 ## Version / 版本
 
 - Version / 版本：`1.0.0`
-- Platform / 平台：macOS 13+
+- Platform / 平台：macOS 26.0+
 - App bundle / App 包：`dist/AudioX.app`
 - DMG：`dist/AudioX-1.0.0-universal.dmg`
 

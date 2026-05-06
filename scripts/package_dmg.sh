@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="1.0.0"
+VERSION="${AUDIOX_VERSION:-1.0.0}"
 TARGET="${1:-native}"
 DMG_ROOT="$ROOT_DIR/dist/dmg-root"
 case "$TARGET" in

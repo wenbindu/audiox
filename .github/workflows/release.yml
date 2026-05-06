@@ -31,21 +31,35 @@ jobs:
       - name: Build universal DMG
         run: |
           chmod +x scripts/package_app.sh scripts/package_dmg.sh scripts/generate_icon.swift
-          scripts/package_dmg.sh universal
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+            VERSION="${VERSION#v}"
+          fi
+          AUDIOX_VERSION="$VERSION" scripts/package_dmg.sh arm64
+          AUDIOX_VERSION="$VERSION" scripts/package_dmg.sh intel
+          AUDIOX_VERSION="$VERSION" scripts/package_dmg.sh universal
 
       - name: Prepare release assets
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+            VERSION="${VERSION#v}"
+          fi
           mkdir -p release
-          cp dist/AudioX-1.0.0-universal.dmg release/
+          cp "dist/AudioX-$VERSION-arm64.dmg" release/
+          cp "dist/AudioX-$VERSION-intel.dmg" release/
+          cp "dist/AudioX-$VERSION-universal.dmg" release/
           cd release
-          shasum -a 256 AudioX-1.0.0-universal.dmg > SHA256SUMS
+          shasum -a 256 *.dmg > SHA256SUMS
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AudioX-1.0.0-universal
+          name: AudioX-release-dmgs
           path: |
-            release/AudioX-1.0.0-universal.dmg
+            release/*.dmg
             release/SHA256SUMS
 
       - name: Publish GitHub Release
@@ -53,17 +67,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          NOTES="AudioX macOS universal DMG.
+          VERSION="${TAG_NAME#v}"
+          NOTES="AudioX macOS DMG builds.
 
           Runtime:
           - Xcode is not required.
           - MP3/WAV/M4A/AAC work natively.
-          - OGG/OPUS/FLAC/P3 need FFmpeg installed for v1.0.0: brew install ffmpeg"
+          - OGG/OPUS/FLAC/P3 need FFmpeg installed for $VERSION: brew install ffmpeg
+
+          Assets:
+          - AudioX-$VERSION-arm64.dmg for Apple Silicon
+          - AudioX-$VERSION-intel.dmg for Intel Macs
+          - AudioX-$VERSION-universal.dmg for both architectures"
 
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" release/AudioX-1.0.0-universal.dmg release/SHA256SUMS --clobber
+            gh release upload "$TAG_NAME" release/*.dmg release/SHA256SUMS --clobber
           else
-            gh release create "$TAG_NAME" release/AudioX-1.0.0-universal.dmg release/SHA256SUMS \
+            gh release create "$TAG_NAME" release/*.dmg release/SHA256SUMS \
               --title "AudioX $TAG_NAME" \
               --notes "$NOTES"
           fi

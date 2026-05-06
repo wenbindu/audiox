@@ -108,9 +108,9 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow builds `AudioX-1.0.0-universal.dmg` and uploads it to GitHub Releases.
+The workflow builds `arm64`, `intel`, and `universal` DMGs and uploads them to GitHub Releases.
 
-Workflow 会构建 `AudioX-1.0.0-universal.dmg` 并上传到 GitHub Releases。
+Workflow 会构建 `arm64`、`intel` 和 `universal` 三个 DMG，并上传到 GitHub Releases。
 
 If the tag was pushed before the workflow existed, open GitHub Actions and run `Release DMG` manually with the same tag.
 

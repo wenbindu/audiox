@@ -131,12 +131,66 @@ public struct AudioWaveform: Identifiable, Equatable, Sendable {
     public let trackId: UUID
     public let trackName: String
     public let values: [Float]
+    public let metrics: AudioMetrics
 
-    public init(trackId: UUID, trackName: String, values: [Float]) {
+    public init(trackId: UUID, trackName: String, values: [Float], metrics: AudioMetrics = .empty) {
         id = trackId
         self.trackId = trackId
         self.trackName = trackName
         self.values = values
+        self.metrics = metrics
+    }
+}
+
+public struct AudioMetrics: Equatable, Sendable {
+    public let durationSeconds: Double
+    public let peakDBFS: Double
+    public let rmsDBFS: Double
+    public let approximateLUFS: Double
+    public let momentaryLUFS: Double
+    public let crestFactorDB: Double
+    public let dynamicRangeDB: Double
+    public let snrDB: Double?
+
+    public init(
+        durationSeconds: Double,
+        peakDBFS: Double,
+        rmsDBFS: Double,
+        approximateLUFS: Double,
+        momentaryLUFS: Double,
+        crestFactorDB: Double,
+        dynamicRangeDB: Double,
+        snrDB: Double?
+    ) {
+        self.durationSeconds = durationSeconds
+        self.peakDBFS = peakDBFS
+        self.rmsDBFS = rmsDBFS
+        self.approximateLUFS = approximateLUFS
+        self.momentaryLUFS = momentaryLUFS
+        self.crestFactorDB = crestFactorDB
+        self.dynamicRangeDB = dynamicRangeDB
+        self.snrDB = snrDB
+    }
+
+    public static let empty = AudioMetrics(
+        durationSeconds: 0,
+        peakDBFS: -120,
+        rmsDBFS: -120,
+        approximateLUFS: -120,
+        momentaryLUFS: -120,
+        crestFactorDB: 0,
+        dynamicRangeDB: 0,
+        snrDB: nil
+    )
+}
+
+public struct AudioWaveformAnalysis: Equatable, Sendable {
+    public let values: [Float]
+    public let metrics: AudioMetrics
+
+    public init(values: [Float], metrics: AudioMetrics) {
+        self.values = values
+        self.metrics = metrics
     }
 }
 
@@ -163,35 +217,5 @@ public enum PlayerError: Error, LocalizedError, Sendable {
         case .generic(let message):
             return message
         }
-    }
-}
-
-public struct HealthCheckItem: Identifiable, Equatable, Sendable {
-    public enum Status: String, Codable, Sendable {
-        case pass
-        case warning
-        case fail
-
-        public var icon: String {
-            switch self {
-            case .pass:
-                return "✅"
-            case .warning:
-                return "⚠️"
-            case .fail:
-                return "❌"
-            }
-        }
-    }
-
-    public let id = UUID()
-    public let title: String
-    public let status: Status
-    public let details: String
-
-    public init(title: String, status: Status, details: String) {
-        self.title = title
-        self.status = status
-        self.details = details
     }
 }

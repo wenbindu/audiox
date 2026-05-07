@@ -9,9 +9,9 @@ AudioX v1 是一个 macOS 音频项目播放器，支持通用音频和 xiaozhi/
 ## Version / 版本
 
 - Version / 版本：`1.0.0`
-- Platform / 平台：macOS 26.0+
+- Platform / 平台：macOS 15.0+
 - App bundle / App 包：`dist/AudioX.app`
-- DMG：`dist/AudioX-1.0.0-universal.dmg`
+- DMG：`dist/AudioX-<version>-arm64.dmg`, `dist/AudioX-<version>-intel.dmg`, `dist/AudioX-<version>-universal.dmg`
 
 ## Formats / 格式
 
@@ -37,8 +37,8 @@ P3 -> Opus packets -> temporary Ogg Opus -> temporary WAV -> AVAudioPlayer
 
 - Import and play `wav`, `mp3`, or `m4a`.
 - 导入并播放 `wav`、`mp3` 或 `m4a`。
-- Import and play `ogg`, `opus`, `flac`, or `p3` with FFmpeg installed.
-- 安装 FFmpeg 后导入并播放 `ogg`、`opus`、`flac` 或 `p3`。
+- Import and play `ogg`, `opus`, `flac`, or `p3` with bundled FFmpeg.
+- 使用内置 FFmpeg 导入并播放 `ogg`、`opus`、`flac` 或 `p3`。
 - Drag files or folders into the app.
 - 拖拽文件或文件夹到 App。
 - Reorder playlist items and verify loop playback follows the current row.

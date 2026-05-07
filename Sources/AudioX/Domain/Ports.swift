@@ -29,9 +29,5 @@ public protocol AudioFilePickerPort: AnyObject {
 }
 
 public protocol WaveformAnalyzingPort: Sendable {
-    func analyze(_ track: AudioTrack, sampleCount: Int) async throws -> [Float]
-}
-
-public protocol DependencyCheckingPort: Sendable {
-    func runChecks() async -> [HealthCheckItem]
+    func analyze(_ track: AudioTrack, sampleCount: Int) async throws -> AudioWaveformAnalysis
 }

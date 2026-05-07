@@ -28,9 +28,12 @@ jobs:
           xcode-select -p
           swift --version
 
+      - name: Install FFmpeg for bundled runtime
+        run: brew install ffmpeg
+
       - name: Build universal DMG
         run: |
-          chmod +x scripts/package_app.sh scripts/package_dmg.sh scripts/generate_icon.swift scripts/generate_app_icon.sh scripts/generate_dmg_background.swift
+          chmod +x scripts/package_app.sh scripts/package_dmg.sh scripts/generate_icon.swift scripts/generate_app_icon.sh scripts/generate_dmg_background.swift scripts/bundle_ffmpeg.sh
           scripts/generate_app_icon.sh
           VERSION="${GITHUB_REF_NAME#v}"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -72,9 +75,11 @@ jobs:
           NOTES="AudioX macOS DMG builds.
 
           Runtime:
+          - Requires macOS 15.0 or later.
           - Xcode is not required.
+          - FFmpeg is bundled.
           - MP3/WAV/M4A/AAC work natively.
-          - OGG/OPUS/FLAC/P3 need FFmpeg installed for $VERSION: brew install ffmpeg
+          - OGG/OPUS/FLAC/P3 are supported through the bundled FFmpeg runtime.
 
           Assets:
           - AudioX-$VERSION-arm64.dmg for Apple Silicon

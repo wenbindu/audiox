@@ -6,10 +6,10 @@ Requirements:
 
 依赖：
 
-- macOS 26.0+
+- macOS 15.0+
 - Xcode Command Line Tools or Xcode
 - Swift 6.1+
-- FFmpeg for fallback formats
+- FFmpeg for source runs and bundled release packaging. Release DMGs include FFmpeg.
 
 ```bash
 brew install ffmpeg
@@ -46,13 +46,15 @@ scripts/generate_app_icon.sh
 scripts/package_app.sh
 ```
 
-Build a universal macOS DMG:
+Build macOS DMGs:
 
-构建 universal macOS DMG：
+构建 macOS DMG：
 
 ```bash
 scripts/generate_app_icon.sh
-scripts/package_dmg.sh universal
+scripts/package_dmg.sh arm64 --version 1.0.2
+scripts/package_dmg.sh intel --version 1.0.2
+scripts/package_dmg.sh universal --version 1.0.2
 ```
 
 Other targets:
@@ -60,7 +62,7 @@ Other targets:
 其他目标：
 
 ```bash
-scripts/package_dmg.sh arm
+scripts/package_dmg.sh arm64
 scripts/package_dmg.sh intel
 ```
 
@@ -110,9 +112,9 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow builds `arm64`, `intel`, and `universal` DMGs and uploads them to GitHub Releases.
+The workflow builds `arm64`, `intel`, and `universal` DMGs with bundled FFmpeg and uploads them to GitHub Releases.
 
-Workflow 会构建 `arm64`、`intel` 和 `universal` 三个 DMG，并上传到 GitHub Releases。
+Workflow 会构建带内置 FFmpeg 的 `arm64`、`intel` 和 `universal` 三个 DMG，并上传到 GitHub Releases。
 
 If the tag was pushed before the workflow existed, open GitHub Actions and run `Release DMG` manually with the same tag.
 

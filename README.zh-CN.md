@@ -10,18 +10,24 @@ AudioX 是一个 macOS 音频播放器，支持通用音频和 xiaozhi/乐鑫 `.
 - FFmpeg fallback：`ogg`, `opus`, `flac`, `p3`
 - xiaozhi/乐鑫 P3 帧封装 Opus 专用解析链路
 - 批量导入、文件夹拖拽、去重、移除和列表排序
+- 支持 EN / 中文语言切换
 - 列表循环播放，并自动跟随当前播放项
 - 多音频波形对比
 
 ## 安装
 
-需要 macOS 26.0 或更高版本。
+需要 macOS 15.0 或更高版本。
 
 从 GitHub Releases 页面下载最新 DMG，打开后将 `AudioX.app` 拖入 `Applications`。
 
-已打包 App 不需要安装 Xcode。
+根据 Mac 架构选择安装包：
+- `AudioX-<version>-arm64.dmg` 用于 Apple Silicon Mac。
+- `AudioX-<version>-intel.dmg` 用于 Intel Mac。
+- `AudioX-<version>-universal.dmg` 同时支持两种架构。
 
-v1 播放 `ogg`, `opus`, `flac`, `p3` 需要 FFmpeg：
+已打包 App 内置 FFmpeg，不需要安装 Xcode，也不需要单独安装 FFmpeg。
+
+源码运行时，播放 `ogg`, `opus`, `flac`, `p3` 需要安装 FFmpeg：
 
 ```bash
 brew install ffmpeg
@@ -36,6 +42,30 @@ brew install ffmpeg
 ## 开发
 
 开发、构建、Pull Request 和发布说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 构建
+
+当 `Resources/new.png` 变化时，先生成 App 图标：
+
+```bash
+scripts/generate_app_icon.sh
+```
+
+构建带版本号的 DMG：
+
+```bash
+scripts/package_dmg.sh arm64 --version 1.0.2
+scripts/package_dmg.sh intel --version 1.0.2
+scripts/package_dmg.sh universal --version 1.0.2
+```
+
+输出：
+
+```text
+dist/AudioX-1.0.2-arm64.dmg
+dist/AudioX-1.0.2-intel.dmg
+dist/AudioX-1.0.2-universal.dmg
+```
 
 ## 状态
 

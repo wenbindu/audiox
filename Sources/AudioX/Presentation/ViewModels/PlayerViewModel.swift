@@ -4,8 +4,8 @@ import UniformTypeIdentifiers
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
-    @Published private(set) var stateText: String = PlaybackState.idle.shortDescription
-    @Published private(set) var trackName: String = "未选择音频"
+    @Published private(set) var stateText: String = AppText(language: .english).playbackStateDescription(.idle)
+    @Published private(set) var trackName: String = AppText(language: .english).text("app.noTrack")
     @Published private(set) var progressText: String = "00:00 / 00:00"
     @Published private(set) var errorMessage: String?
     @Published private(set) var canSeek: Bool = false
@@ -13,7 +13,7 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var currentTrackID: UUID?
     @Published private(set) var waveforms: [AudioWaveform] = []
     @Published private(set) var analyzingTrackIDs: Set<UUID> = []
-    @Published private(set) var importStatusText: String = "空项目"
+    @Published private(set) var importStatusText: String = AppText(language: .english).text("app.emptyProject")
     @Published var selectedTrackIDs: Set<UUID> = []
     @Published var comparisonTrackIDs: Set<UUID> = []
     @Published var sliderValue: Double = 0
@@ -23,26 +23,15 @@ final class PlayerViewModel: ObservableObject {
         }
     }
 
-    var selectedCountText: String {
-        selectedTrackIDs.isEmpty ? "未选择" : "\(selectedTrackIDs.count) 个已选"
-    }
-
-    var waveformStatusText: String {
-        if comparisonTrackIDs.isEmpty {
-            return "未加入对比"
-        }
-        if !analyzingTrackIDs.isEmpty {
-            return "\(comparisonTrackIDs.count) 个已加入 · \(analyzingTrackIDs.count) 个分析中"
-        }
-        return "\(waveforms.count) 个波形"
-    }
-
     private let useCase: PlayerUseCase
     private let filePicker: AudioFilePickerPort
     private let waveformAnalyzer: WaveformAnalyzingPort
     private var waveformCache: [UUID: AudioWaveform] = [:]
     private var waveformTasks: [UUID: Task<Void, Never>] = [:]
     private var didImportLaunchArguments = false
+    private var language: AppLanguage = .english
+    private var currentState: PlaybackState = .idle
+    private var currentImportStatus: ImportStatus = .emptyProject
     private var cancellables = Set<AnyCancellable>()
 
     init(
@@ -91,15 +80,13 @@ final class PlayerViewModel: ObservableObject {
         }
 
         guard !uniqueURLs.isEmpty else {
-            importStatusText = expandedURLs.isEmpty ? "没有发现可导入音频" : "没有新音频可导入"
+            setImportStatus(expandedURLs.isEmpty ? .noAudioFound : .noNewAudio)
             return
         }
 
         useCase.addTracks(uniqueURLs, autoPlayFirstIfPossible: autoPlayFirstIfPossible)
         let skipped = max(0, expandedURLs.count - uniqueURLs.count)
-        importStatusText = skipped == 0
-            ? "已导入 \(uniqueURLs.count) 个音频"
-            : "已导入 \(uniqueURLs.count) 个音频，跳过 \(skipped) 个重复项"
+        setImportStatus(skipped == 0 ? .imported(uniqueURLs.count) : .importedSkipped(uniqueURLs.count, skipped))
     }
 
     func playTrack(_ track: AudioTrack) {
@@ -135,7 +122,7 @@ final class PlayerViewModel: ObservableObject {
         useCase.removeTracks(ids: selectedTrackIDs)
         comparisonTrackIDs.subtract(selectedTrackIDs)
         selectedTrackIDs.removeAll()
-        importStatusText = "已清空列表"
+        setImportStatus(.removed)
         refreshVisibleWaveforms()
     }
 
@@ -156,7 +143,12 @@ final class PlayerViewModel: ObservableObject {
         waveformTasks.values.forEach { $0.cancel() }
         waveformTasks = [:]
         analyzingTrackIDs = []
-        importStatusText = "空项目"
+        setImportStatus(.emptyProject)
+    }
+
+    func setLanguage(_ language: AppLanguage) {
+        self.language = language
+        refreshLocalizedText()
     }
 
     func toggleComparison(for track: AudioTrack) {
@@ -196,11 +188,13 @@ final class PlayerViewModel: ObservableObject {
         useCase.$state
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                self?.stateText = state.shortDescription
-                self?.canSeek = self?.durationPositive(state) ?? false
+                guard let self else { return }
+                self.currentState = state
+                self.stateText = AppText(language: self.language).playbackStateDescription(state)
+                self.canSeek = self.durationPositive(state)
                 if case let .ready(duration: duration, format: _) = state {
-                    self?.sliderValue = 0
-                    self?.progressText = "00:00 / \(duration.humanReadable())"
+                    self.sliderValue = 0
+                    self.progressText = "00:00 / \(duration.humanReadable())"
                 }
             }
             .store(in: &cancellables)
@@ -229,7 +223,7 @@ final class PlayerViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] track in
                 guard let self else { return }
-                self.trackName = track?.name ?? "未选择音频"
+                self.trackName = track?.name ?? AppText(language: self.language).text("app.noTrack")
                 self.currentTrackID = track?.id
                 if let track {
                     self.selectedTrackIDs = [track.id]
@@ -262,11 +256,12 @@ final class PlayerViewModel: ObservableObject {
         waveformTasks[track.id] = Task {
             analyzingTrackIDs.insert(track.id)
             do {
-                let values = try await waveformAnalyzer.analyze(track, sampleCount: 1400)
+                let analysis = try await waveformAnalyzer.analyze(track, sampleCount: 1400)
                 waveformCache[track.id] = AudioWaveform(
                     trackId: track.id,
                     trackName: track.name,
-                    values: values
+                    values: analysis.values,
+                    metrics: analysis.metrics
                 )
                 waveformTasks[track.id] = nil
                 analyzingTrackIDs.remove(track.id)
@@ -274,8 +269,37 @@ final class PlayerViewModel: ObservableObject {
             } catch {
                 waveformTasks[track.id] = nil
                 analyzingTrackIDs.remove(track.id)
-                errorMessage = "波形分析失败：\(track.name) - \(error.localizedDescription)"
+                errorMessage = AppText(language: language).format("app.waveform.failed", track.name, error.localizedDescription)
             }
+        }
+    }
+
+    private func refreshLocalizedText() {
+        let text = AppText(language: language)
+        stateText = text.playbackStateDescription(currentState)
+        trackName = useCase.currentTrack?.name ?? text.text("app.noTrack")
+        importStatusText = localizedImportStatus(currentImportStatus, text: text)
+    }
+
+    private func setImportStatus(_ status: ImportStatus) {
+        currentImportStatus = status
+        importStatusText = localizedImportStatus(status, text: AppText(language: language))
+    }
+
+    private func localizedImportStatus(_ status: ImportStatus, text: AppText) -> String {
+        switch status {
+        case .emptyProject:
+            return text.text("app.emptyProject")
+        case .noAudioFound:
+            return text.text("app.import.none")
+        case .noNewAudio:
+            return text.text("app.import.noNew")
+        case .imported(let count):
+            return text.format("app.import.done", count)
+        case .importedSkipped(let count, let skipped):
+            return text.format("app.import.skipped", count, skipped)
+        case .removed:
+            return text.text("app.remove.done")
         }
     }
 
@@ -380,6 +404,15 @@ final class PlayerViewModel: ObservableObject {
         }
         return nil
     }
+}
+
+private enum ImportStatus {
+    case emptyProject
+    case noAudioFound
+    case noNewAudio
+    case imported(Int)
+    case importedSkipped(Int, Int)
+    case removed
 }
 
 private extension Array {

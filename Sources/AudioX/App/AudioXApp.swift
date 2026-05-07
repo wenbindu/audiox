@@ -5,10 +5,11 @@ import AppKit
 struct AudioXApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var viewModel = AppDependencyContainer.buildViewModel()
+    @StateObject private var settings = AppSettings()
 
     var body: some Scene {
         WindowGroup("AudioX") {
-            ContentView(viewModel: viewModel)
+            ContentView(viewModel: viewModel, settings: settings)
                 .task {
                     viewModel.importLaunchArgumentsIfNeeded()
                 }
@@ -18,7 +19,7 @@ struct AudioXApp: App {
         }
         .commands {
             CommandGroup(after: .newItem) {
-                Button("打开音频…") {
+                Button(AppText(language: settings.language).openAudioMenu) {
                     viewModel.openFromPicker()
                 }
                 .keyboardShortcut("o", modifiers: [.command])

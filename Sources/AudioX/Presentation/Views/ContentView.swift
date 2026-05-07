@@ -3,7 +3,12 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @ObservedObject var viewModel: PlayerViewModel
+    @ObservedObject var settings: AppSettings
     @State private var isDropTargeted = false
+
+    private var text: AppText {
+        AppText(language: settings.language)
+    }
 
     var body: some View {
         HSplitView {
@@ -25,15 +30,24 @@ struct ContentView: View {
                     .padding(8)
             }
         }
+        .onAppear {
+            viewModel.setLanguage(settings.language)
+        }
+        .onChange(of: settings.language) { language in
+            viewModel.setLanguage(language)
+        }
     }
 
     private var playlistPanel: some View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("AudioX")
-                        .font(.title2.weight(.semibold))
-                    Text("\(viewModel.tracks.count) 个音频 · \(viewModel.selectedCountText)")
+                    HStack(spacing: 10) {
+                        Text("AudioX")
+                            .font(.title2.weight(.semibold))
+                        LanguageSwitch(language: $settings.language)
+                    }
+                    Text(text.playlistSummary(trackCount: viewModel.tracks.count, selectedCount: viewModel.selectedTrackIDs.count))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(viewModel.importStatusText)
@@ -46,9 +60,9 @@ struct ContentView: View {
                 Button {
                     viewModel.openFromPicker()
                 } label: {
-                    Label("导入", systemImage: "plus")
+                    Label(text.importButton, systemImage: "plus")
                 }
-                .help("批量导入音频")
+                .help(text.importButton)
             }
             .padding(14)
 
@@ -85,22 +99,22 @@ struct ContentView: View {
                 Button {
                     viewModel.removeSelectedTracks()
                 } label: {
-                    Label("移除", systemImage: "minus")
+                    Label(text.removeButton, systemImage: "minus")
                 }
                 .disabled(viewModel.selectedTrackIDs.isEmpty)
-                .help("移除选中音频")
+                .help(text.removeButton)
 
                 Button {
                     viewModel.clearPlaylist()
                 } label: {
-                    Label("清空", systemImage: "trash")
+                    Label(text.clearButton, systemImage: "trash")
                 }
                 .disabled(viewModel.tracks.isEmpty)
-                .help("清空列表")
+                .help(text.clearButton)
 
                 Spacer()
 
-                Toggle("循环", isOn: $viewModel.isLoopEnabled)
+                Toggle(text.loopToggle, isOn: $viewModel.isLoopEnabled)
                     .toggleStyle(.switch)
             }
             .padding(12)
@@ -177,15 +191,19 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("波形对比")
+                    Text(text.waveformComparison)
                         .font(.headline)
                     Spacer()
-                    Text(viewModel.waveformStatusText)
+                    Text(text.waveformStatus(
+                        comparisonCount: viewModel.comparisonTrackIDs.count,
+                        analyzingCount: viewModel.analyzingTrackIDs.count,
+                        waveformCount: viewModel.waveforms.count
+                    ))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                WaveformComparisonView(waveforms: viewModel.waveforms)
+                WaveformComparisonView(waveforms: viewModel.waveforms, emptyText: text.emptyWaveform)
                     .frame(maxWidth: .infinity, minHeight: 260)
             }
 
@@ -235,6 +253,7 @@ private struct TrackRowView: View {
 
 private struct WaveformComparisonView: View {
     let waveforms: [AudioWaveform]
+    let emptyText: String
 
     private let colors: [Color] = [
         .accentColor,
@@ -255,52 +274,155 @@ private struct WaveformComparisonView: View {
                     Image(systemName: "waveform.path.ecg")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
-                    Text("暂无波形")
+                    Text(emptyText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Canvas { context, size in
-                    let rowHeight = size.height / CGFloat(max(waveforms.count, 1))
-                    let labelWidth: CGFloat = min(180, size.width * 0.28)
-                    let graphLeft = labelWidth + 12
-                    let graphWidth = max(1, size.width - graphLeft - 12)
-
-                    for (row, waveform) in waveforms.enumerated() {
-                        let color = colors[row % colors.count]
-                        let top = CGFloat(row) * rowHeight
-                        let midY = top + rowHeight / 2
-                        let amplitude = max(8, rowHeight * 0.34)
-
-                        var baseline = Path()
-                        baseline.move(to: CGPoint(x: graphLeft, y: midY))
-                        baseline.addLine(to: CGPoint(x: graphLeft + graphWidth, y: midY))
-                        context.stroke(baseline, with: .color(.secondary.opacity(0.2)), lineWidth: 1)
-
-                        var path = Path()
-                        let values = waveform.values
-                        if values.count > 1 {
-                            for index in values.indices {
-                                let x = graphLeft + CGFloat(index) / CGFloat(values.count - 1) * graphWidth
-                                let yOffset = CGFloat(values[index]) * amplitude
-                                path.move(to: CGPoint(x: x, y: midY - yOffset))
-                                path.addLine(to: CGPoint(x: x, y: midY + yOffset))
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(Array(waveforms.enumerated()), id: \.element.id) { index, waveform in
+                            WaveformRowView(
+                                waveform: waveform,
+                                color: colors[index % colors.count]
+                            )
+                            if index < waveforms.count - 1 {
+                                Divider()
+                                    .padding(.horizontal, 12)
                             }
                         }
-                        context.stroke(path, with: .color(color.opacity(0.86)), lineWidth: 1)
-
-                        context.draw(
-                            Text(waveform.trackName)
-                                .font(.caption)
-                                .foregroundColor(color),
-                            at: CGPoint(x: 8, y: midY),
-                            anchor: .leading
-                        )
                     }
+                    .padding(.vertical, 8)
                 }
-                .padding(8)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct WaveformRowView: View {
+    let waveform: AudioWaveform
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 18) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text(waveform.trackName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(color)
+                    .lineLimit(2)
+
+                metricLine("Duration", formatDuration(waveform.metrics.durationSeconds))
+                metricLine("M-LUFS", formatDB(waveform.metrics.momentaryLUFS))
+                metricLine("RMS", formatDB(waveform.metrics.rmsDBFS))
+                metricLine("Peak", formatDB(waveform.metrics.peakDBFS))
+                metricLine("Crest", formatDB(waveform.metrics.crestFactorDB))
+                if let snr = waveform.metrics.snrDB {
+                    metricLine("SNR", formatDB(snr))
+                }
+            }
+            .frame(width: 210, alignment: .leading)
+            .padding(.leading, 14)
+            .padding(.vertical, 12)
+
+            WaveformShape(values: waveform.values)
+                .stroke(color.opacity(0.86), lineWidth: 1)
+                .background(
+                    BaselineShape()
+                        .stroke(Color.secondary.opacity(0.20), lineWidth: 1)
+                )
+                .frame(minHeight: 112)
+                .padding(.trailing, 14)
+                .padding(.vertical, 12)
+        }
+    }
+
+    private func metricLine(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.primary)
+        }
+        .font(.system(size: 10, weight: .regular, design: .monospaced))
+    }
+
+    private func formatDB(_ value: Double) -> String {
+        String(format: "%.1f dB", value)
+    }
+
+    private func formatDuration(_ value: Double) -> String {
+        if value < 1 {
+            return String(format: "%.0f ms", value * 1000)
+        }
+        return String(format: "%.2f s", value)
+    }
+}
+
+private struct WaveformShape: Shape {
+    let values: [Float]
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        guard values.count > 1 else { return path }
+
+        let midY = rect.midY
+        let amplitude = max(8, rect.height * 0.40)
+
+        for index in values.indices {
+            let x = rect.minX + CGFloat(index) / CGFloat(values.count - 1) * rect.width
+            let offset = CGFloat(values[index]) * amplitude
+            path.move(to: CGPoint(x: x, y: midY - offset))
+            path.addLine(to: CGPoint(x: x, y: midY + offset))
+        }
+
+        return path
+    }
+}
+
+private struct BaselineShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return path
+    }
+}
+
+private struct LanguageSwitch: View {
+    @Binding var language: AppLanguage
+
+    var body: some View {
+        Button {
+            language = language == .english ? .simplifiedChinese : .english
+        } label: {
+            ZStack(alignment: language == .english ? .leading : .trailing) {
+                Capsule()
+                    .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.22))
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.secondary.opacity(0.20), lineWidth: 1)
+                    )
+
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.88))
+                    .frame(width: 38, height: 24)
+                    .padding(3)
+
+                HStack(spacing: 0) {
+                    Text("EN")
+                        .frame(width: 38)
+                    Text("中")
+                        .frame(width: 38)
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 3)
+            }
+            .frame(width: 82, height: 30)
+        }
+        .buttonStyle(.plain)
+        .help("EN / 中")
     }
 }

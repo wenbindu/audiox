@@ -21,6 +21,9 @@
 - [x] Add v1 app icon resource.
 - [x] Add local DMG packaging script.
 - [x] Remove runtime dependency-check panel and guide FFmpeg installation only when playback needs it.
+- [x] Add EN / Chinese language switch in the main UI.
+- [x] Bundle local FFmpeg and its Homebrew dylib closure inside `AudioX.app`.
+- [x] Prefer bundled `Contents/Resources/Tools/ffmpeg`, then fall back to system `PATH`.
 
 ## Next
 - [ ] Persist project files, playlist order, and comparison selection.
@@ -28,8 +31,8 @@
 - [ ] Add duration/status columns for every playlist item.
 - [ ] Add failed-item diagnostics and retry controls.
 - [ ] Add content sniffing for `p3` and common audio containers instead of extension-only detection.
-- [ ] v1.1 short term: bundle a trimmed LGPL FFmpeg binary inside `AudioX.app` for install-and-play OGG/OPUS/FLAC/P3 support.
-- [ ] v1.1 short term: update decoder lookup to prefer bundled `Contents/Resources/Tools/ffmpeg`, then fall back to system PATH.
+- [ ] v1.1 short term: make FFmpeg bundling reproducible per architecture in CI instead of relying on the local Homebrew binary.
+- [ ] v1.1 short term: replace the dynamic Homebrew FFmpeg bundle with a smaller trimmed LGPL build if distribution size becomes a problem.
 - [ ] v2 long term: remove FFmpeg dependency by decoding P3/OPUS through libopus/libogg and FLAC through libFLAC or native replacements.
 - [ ] v2 long term: replace external-process decoding with an in-process PCM pipeline for lower latency and smaller distribution size.
 - [ ] Add unit tests for playlist reorder/remove/loop behavior.

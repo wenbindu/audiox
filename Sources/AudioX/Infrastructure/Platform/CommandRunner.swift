@@ -43,6 +43,14 @@ struct ProcessRunner {
     }
 
     static func executablePath(for name: String) -> String? {
+        if let bundled = Bundle.main.resourceURL?
+            .appendingPathComponent("Tools")
+            .appendingPathComponent(name)
+            .path,
+           FileManager.default.isExecutableFile(atPath: bundled) {
+            return bundled
+        }
+
         let envPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
         let candidates = envPath
             .split(separator: ":")

@@ -3,7 +3,29 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${AUDIOX_VERSION:-1.0.0}"
-TARGET="${1:-native}"
+TARGET="native"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version)
+            VERSION="${2:?Missing value for --version}"
+            shift 2
+            ;;
+        --version=*)
+            VERSION="${1#--version=}"
+            shift
+            ;;
+        native|arm|arm64|intel|x86_64|universal|universal2)
+            TARGET="$1"
+            shift
+            ;;
+        *)
+            echo "Usage: scripts/package_dmg.sh [native|arm|arm64|intel|x86_64|universal] [--version VERSION]" >&2
+            exit 64
+            ;;
+    esac
+done
+
 DMG_ROOT="$ROOT_DIR/dist/dmg-root"
 BACKGROUND_FILE="$ROOT_DIR/Resources/dmg-background.png"
 case "$TARGET" in
@@ -24,12 +46,12 @@ case "$TARGET" in
         VOLUME_NAME="AudioX $VERSION universal"
         ;;
     *)
-        echo "Usage: scripts/package_dmg.sh [native|arm|arm64|intel|x86_64|universal]" >&2
+        echo "Usage: scripts/package_dmg.sh [native|arm|arm64|intel|x86_64|universal] [--version VERSION]" >&2
         exit 64
         ;;
 esac
 
-APP_DIR="$("$ROOT_DIR/scripts/package_app.sh" "$TARGET" | tail -n 1)"
+APP_DIR="$("$ROOT_DIR/scripts/package_app.sh" "$TARGET" --version "$VERSION" | tail -n 1)"
 mkdir -p "$ROOT_DIR/.build/module-cache"
 swift -module-cache-path "$ROOT_DIR/.build/module-cache" "$ROOT_DIR/scripts/generate_dmg_background.swift" "$BACKGROUND_FILE" >/dev/null
 

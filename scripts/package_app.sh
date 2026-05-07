@@ -3,7 +3,28 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${AUDIOX_VERSION:-1.0.0}"
-TARGET="${1:-native}"
+TARGET="native"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version)
+            VERSION="${2:?Missing value for --version}"
+            shift 2
+            ;;
+        --version=*)
+            VERSION="${1#--version=}"
+            shift
+            ;;
+        native|arm|arm64|intel|x86_64|universal|universal2)
+            TARGET="$1"
+            shift
+            ;;
+        *)
+            echo "Usage: scripts/package_app.sh [native|arm|arm64|intel|x86_64|universal] [--version VERSION]" >&2
+            exit 64
+            ;;
+    esac
+done
 
 case "$TARGET" in
     native)
@@ -23,7 +44,7 @@ case "$TARGET" in
         APP_DIR="$ROOT_DIR/dist/AudioX-$VERSION-universal.app"
         ;;
     *)
-        echo "Usage: scripts/package_app.sh [native|arm|arm64|intel|x86_64|universal]" >&2
+        echo "Usage: scripts/package_app.sh [native|arm|arm64|intel|x86_64|universal] [--version VERSION]" >&2
         exit 64
         ;;
 esac
@@ -45,6 +66,9 @@ rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BIN_DIR/AudioX" "$MACOS_DIR/AudioX"
 cp "$ICON_FILE" "$RESOURCES_DIR/AppIcon.icns"
+if [[ -d "$ROOT_DIR/Resources/Localization" ]]; then
+    cp -R "$ROOT_DIR/Resources/Localization" "$RESOURCES_DIR/Localization"
+fi
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -70,7 +94,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
-    <string>26.0</string>
+    <string>15.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>CFBundleDocumentTypes</key>
@@ -107,5 +131,9 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 PLIST
 
 perl -0pi -e "s/__VERSION__/$VERSION/g" "$CONTENTS_DIR/Info.plist"
+
+if [[ "${AUDIOX_BUNDLE_FFMPEG:-1}" == "1" ]]; then
+    "$ROOT_DIR/scripts/bundle_ffmpeg.sh" "$APP_DIR" >/dev/null
+fi
 
 echo "$APP_DIR"

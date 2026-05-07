@@ -1,8 +1,8 @@
 # Build Targets / 构建目标
 
-AudioX v1 is a macOS app. The packaged app does not require Xcode at runtime.
+AudioX v1 is a macOS app. The packaged app does not require Xcode or a separate FFmpeg install at runtime.
 
-AudioX v1 是 macOS App。运行已打包 App 不需要 Xcode。
+AudioX v1 是 macOS App。运行已打包 App 不需要 Xcode，也不需要单独安装 FFmpeg。
 
 ## macOS / macOS
 
@@ -17,19 +17,19 @@ scripts/package_dmg.sh
 Apple Silicon:
 
 ```bash
-scripts/package_dmg.sh arm
+scripts/package_dmg.sh arm64 --version 1.0.2
 ```
 
 Intel:
 
 ```bash
-scripts/package_dmg.sh intel
+scripts/package_dmg.sh intel --version 1.0.2
 ```
 
 Universal:
 
 ```bash
-scripts/package_dmg.sh universal
+scripts/package_dmg.sh universal --version 1.0.2
 ```
 
 `universal` contains both `arm64` and `x86_64`.

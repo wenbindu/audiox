@@ -29,5 +29,15 @@ public protocol AudioFilePickerPort: AnyObject {
 }
 
 public protocol WaveformAnalyzingPort: Sendable {
-    func analyze(_ track: AudioTrack, sampleCount: Int) async throws -> AudioWaveformAnalysis
+    func analyze(
+        _ track: AudioTrack,
+        sampleCount: Int,
+        previewHandler: (@MainActor @Sendable (AudioWaveformAnalysis) -> Void)?
+    ) async throws -> AudioWaveformAnalysis
+}
+
+public extension WaveformAnalyzingPort {
+    func analyze(_ track: AudioTrack, sampleCount: Int) async throws -> AudioWaveformAnalysis {
+        try await analyze(track, sampleCount: sampleCount, previewHandler: nil)
+    }
 }

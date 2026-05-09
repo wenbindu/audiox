@@ -8,11 +8,24 @@ struct AVFoundationWaveformAnalyzer: WaveformAnalyzingPort {
         self.decoders = decoders
     }
 
-    func analyze(_ track: AudioTrack, sampleCount: Int) async throws -> AudioWaveformAnalysis {
+    func analyze(
+        _ track: AudioTrack,
+        sampleCount: Int,
+        previewHandler: (@MainActor @Sendable (AudioWaveformAnalysis) -> Void)?
+    ) async throws -> AudioWaveformAnalysis {
         let media = try await resolve(track)
         defer {
             if media.removeAfterUse {
                 try? FileManager.default.removeItem(at: media.source)
+            }
+        }
+
+        if let previewHandler {
+            let previewTask = Task.detached(priority: .userInitiated) {
+                try Self.readWaveformPreview(from: media.source, sampleCount: sampleCount)
+            }
+            if let preview = try? await previewTask.value {
+                await previewHandler(preview)
             }
         }
 
@@ -50,12 +63,12 @@ struct AVFoundationWaveformAnalyzer: WaveformAnalyzingPort {
         var sumSquares: Double = 0
         var peak: Double = 0
         var sampleTotal = 0
-        var quietSquares: [Double] = []
-        quietSquares.reserveCapacity(4096)
-        var recentSquares: [Double] = []
         var recentSquareSum: Double = 0
         var maxMomentaryRMS: Double = 0
         let momentaryWindowSamples = max(1, Int(format.sampleRate * 0.4) * max(1, Int(format.channelCount)))
+        var recentSquares = Array(repeating: 0.0, count: momentaryWindowSamples)
+        var recentIndex = 0
+        var recentCount = 0
 
         let chunkFrameCount = AVAudioFrameCount(min(16_384, totalFrames))
         var globalFrame = 0
@@ -88,20 +101,19 @@ struct AVFoundationWaveformAnalyzer: WaveformAnalyzingPort {
                     let square = value * value
                     sumSquares += square
                     sampleTotal += 1
-                    recentSquares.append(square)
-                    recentSquareSum += square
-                    if recentSquares.count > momentaryWindowSamples {
-                        recentSquareSum -= recentSquares.removeFirst()
+
+                    if recentCount < momentaryWindowSamples {
+                        recentSquares[recentIndex] = square
+                        recentSquareSum += square
+                        recentCount += 1
+                    } else {
+                        recentSquareSum += square - recentSquares[recentIndex]
+                        recentSquares[recentIndex] = square
                     }
-                    if !recentSquares.isEmpty {
-                        maxMomentaryRMS = max(maxMomentaryRMS, sqrt(recentSquareSum / Double(recentSquares.count)))
-                    }
-                    if quietSquares.count < 4096 || absValue < sqrt(quietSquares.last ?? Double.greatestFiniteMagnitude) {
-                        quietSquares.append(square)
-                        if quietSquares.count > 4096 {
-                            quietSquares.sort()
-                            quietSquares.removeLast(quietSquares.count - 4096)
-                        }
+                    recentIndex = (recentIndex + 1) % momentaryWindowSamples
+
+                    if recentCount > 0 {
+                        maxMomentaryRMS = max(maxMomentaryRMS, sqrt(recentSquareSum / Double(recentCount)))
                     }
                 }
 
@@ -119,13 +131,6 @@ struct AVFoundationWaveformAnalyzer: WaveformAnalyzingPort {
         let momentaryLUFS = dbFS(maxMomentaryRMS) - 0.691
         let dynamicRangeDB = max(0, peakDBFS - rmsDBFS)
         let crestFactorDB = dynamicRangeDB
-        let noiseRMS = quietSquares.isEmpty
-            ? nil
-            : sqrt(quietSquares.reduce(0, +) / Double(quietSquares.count))
-        let snrDB = noiseRMS.flatMap { noise -> Double? in
-            guard noise > 0, rms > noise else { return nil }
-            return 20 * log10(rms / noise)
-        }
 
         return AudioWaveformAnalysis(
             values: values,
@@ -137,7 +142,82 @@ struct AVFoundationWaveformAnalyzer: WaveformAnalyzingPort {
                 momentaryLUFS: momentaryLUFS,
                 crestFactorDB: crestFactorDB,
                 dynamicRangeDB: dynamicRangeDB,
-                snrDB: snrDB
+                snrDB: nil
+            )
+        )
+    }
+
+    private static func readWaveformPreview(from url: URL, sampleCount: Int) throws -> AudioWaveformAnalysis {
+        let file = try AVAudioFile(forReading: url)
+        let format = file.processingFormat
+        let totalFrames = Int(file.length)
+
+        guard totalFrames > 0 else {
+            return AudioWaveformAnalysis(values: [], metrics: .empty)
+        }
+
+        let bucketCount = max(64, min(sampleCount / 2, 600))
+        let framesPerBucket = max(1, totalFrames / bucketCount)
+        let framesPerProbe = max(1, min(framesPerBucket, 512))
+        var peaks = Array(repeating: Float(0), count: bucketCount)
+        var sumSquares: Double = 0
+        var peak: Double = 0
+        var sampleTotal = 0
+
+        for bucket in 0..<bucketCount {
+            let startFrame = min(bucket * framesPerBucket, totalFrames - 1)
+            file.framePosition = AVAudioFramePosition(startFrame)
+            let remainingFrames = Int(file.length - file.framePosition)
+            let framesToRead = AVAudioFrameCount(min(framesPerProbe, remainingFrames))
+
+            guard framesToRead > 0,
+                  let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: framesToRead) else {
+                continue
+            }
+
+            try file.read(into: buffer, frameCount: framesToRead)
+
+            guard let channelData = buffer.floatChannelData else {
+                continue
+            }
+
+            let frames = Int(buffer.frameLength)
+            let channels = Int(format.channelCount)
+            var bucketPeak: Float = 0
+
+            for frame in 0..<frames {
+                var mixed: Float = 0
+                for channel in 0..<channels {
+                    let value = Double(channelData[channel][frame])
+                    let absValue = abs(value)
+                    mixed += Float(absValue)
+                    peak = max(peak, absValue)
+                    sumSquares += value * value
+                    sampleTotal += 1
+                }
+                bucketPeak = max(bucketPeak, mixed / Float(channels))
+            }
+
+            peaks[bucket] = min(bucketPeak, 1)
+        }
+
+        let rms = sampleTotal > 0 ? sqrt(sumSquares / Double(sampleTotal)) : 0
+        let peakDBFS = dbFS(peak)
+        let rmsDBFS = dbFS(rms)
+        let approximateLUFS = rmsDBFS - 0.691
+        let dynamicRangeDB = max(0, peakDBFS - rmsDBFS)
+
+        return AudioWaveformAnalysis(
+            values: peaks,
+            metrics: AudioMetrics(
+                durationSeconds: Double(totalFrames) / format.sampleRate,
+                peakDBFS: peakDBFS,
+                rmsDBFS: rmsDBFS,
+                approximateLUFS: approximateLUFS,
+                momentaryLUFS: approximateLUFS,
+                crestFactorDB: dynamicRangeDB,
+                dynamicRangeDB: dynamicRangeDB,
+                snrDB: nil
             )
         )
     }

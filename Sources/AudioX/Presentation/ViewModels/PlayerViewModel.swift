@@ -256,7 +256,20 @@ final class PlayerViewModel: ObservableObject {
         waveformTasks[track.id] = Task {
             analyzingTrackIDs.insert(track.id)
             do {
-                let analysis = try await waveformAnalyzer.analyze(track, sampleCount: 1400)
+                let analysis = try await waveformAnalyzer.analyze(
+                    track,
+                    sampleCount: 1400,
+                    previewHandler: { [weak self] preview in
+                        guard let self else { return }
+                        waveformCache[track.id] = AudioWaveform(
+                            trackId: track.id,
+                            trackName: track.name,
+                            values: preview.values,
+                            metrics: preview.metrics
+                        )
+                        refreshVisibleWaveforms()
+                    }
+                )
                 waveformCache[track.id] = AudioWaveform(
                     trackId: track.id,
                     trackName: track.name,

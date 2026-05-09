@@ -52,9 +52,9 @@ Build macOS DMGs:
 
 ```bash
 scripts/generate_app_icon.sh
-scripts/package_dmg.sh arm64 --version 1.0.2
-scripts/package_dmg.sh intel --version 1.0.2
-scripts/package_dmg.sh universal --version 1.0.2
+scripts/package_dmg.sh arm64 --version 1.0.4
+scripts/package_dmg.sh intel --version 1.0.4
+scripts/package_dmg.sh universal --version 1.0.4
 ```
 
 Other targets:
@@ -108,8 +108,8 @@ Create and push a version tag:
 创建并推送版本 tag：
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.4
+git push origin v1.0.4
 ```
 
 The workflow builds `arm64`, `intel`, and `universal` DMGs with bundled FFmpeg and uploads them to GitHub Releases.
@@ -119,3 +119,9 @@ Workflow 会构建带内置 FFmpeg 的 `arm64`、`intel` 和 `universal` 三个 
 If the tag was pushed before the workflow existed, open GitHub Actions and run `Release DMG` manually with the same tag.
 
 如果 tag 早于 workflow 推送，请在 GitHub Actions 页面手动运行 `Release DMG`，并填写同一个 tag。
+
+## License / 许可证
+
+By contributing, you agree that your contribution is licensed under the MIT License.
+
+提交贡献即表示你同意相关贡献以 MIT License 授权。

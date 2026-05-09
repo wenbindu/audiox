@@ -13,8 +13,11 @@
 - [x] Support internal list reordering.
 - [x] Add waveform analysis service.
 - [x] Optimize waveform analysis for long audio files with chunked reads.
+- [x] Speed up long-file waveform analysis with preview-first rendering and a rolling LUFS window.
+- [x] Hide SNR when unavailable or skipped so waveform display is not blocked.
 - [x] Add multi-audio waveform comparison view.
 - [x] Keep OGG/OPUS/FLAC playback and waveform analysis on the FFmpeg fallback path.
+- [x] Add AAC/M4A, FLAC, Opus, AIFF/CAF, and raw PCM import/playback coverage.
 - [x] Add dedicated xiaozhi/ESP P3 parser and Opus remux decode path.
 - [x] Keep selected row and scroll position aligned with current track during loop playback.
 - [x] Stop playback and terminate the app when the last window closes.
@@ -24,6 +27,8 @@
 - [x] Add EN / Chinese language switch in the main UI.
 - [x] Bundle local FFmpeg and its Homebrew dylib closure inside `AudioX.app`.
 - [x] Prefer bundled `Contents/Resources/Tools/ffmpeg`, then fall back to system `PATH`.
+- [x] Add multi-format sample audio fixtures under `samples/`.
+- [x] Publish under the MIT License.
 
 ## Next
 - [ ] Persist project files, playlist order, and comparison selection.

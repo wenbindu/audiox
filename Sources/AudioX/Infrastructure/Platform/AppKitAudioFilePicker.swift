@@ -12,8 +12,7 @@ final class AppKitAudioFilePicker: AudioFilePickerPort {
             panel.canChooseDirectories = true
             panel.allowsOtherFileTypes = true
             var contentTypes: [UTType] = [.audio]
-            let extensions = ["ogg", "opus", "p3", "wav", "mp3", "flac", "aac", "m4a"]
-            for ext in extensions {
+            for ext in AudioFormat.supportedFileExtensions {
                 if let type = UTType(filenameExtension: ext) {
                     contentTypes.append(type)
                 }

@@ -5,7 +5,7 @@ struct AVFoundationDecoder: AudioDecoderStrategy {
     var id: String { "AVFoundation Native" }
 
     var preferredFormats: Set<AudioFormat> {
-        [.mp3, .wav, .aac, .m4a]
+        [.mp3, .wav, .aac, .m4a, .aif, .aiff, .caf]
     }
 
     func canDecode(_ track: AudioTrack) async -> Bool {

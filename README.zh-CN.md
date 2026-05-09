@@ -2,17 +2,17 @@
 
 [English](README.md)
 
-AudioX 是一个 macOS 音频播放器，支持通用音频和 xiaozhi/乐鑫 `.p3` 文件，提供列表播放、拖拽导入、循环播放和波形对比。
+AudioX 是一个 macOS 音频播放器，支持通用音频和 xiaozhi/乐鑫 `.p3` 文件，提供列表播放、拖拽导入、循环播放、快速波形预览和多音频波形对比。
 
 ## 功能
 
-- 原生播放：`mp3`, `wav`, `aac`, `m4a`
-- FFmpeg fallback：`ogg`, `opus`, `flac`, `p3`
+- 原生播放：`mp3`, `wav`, `aac`, `m4a`, `aif`, `aiff`, `caf`
+- FFmpeg fallback：`ogg`, `opus`, `flac`, `p3`, 裸 `pcm`
 - xiaozhi/乐鑫 P3 帧封装 Opus 专用解析链路
 - 批量导入、文件夹拖拽、去重、移除和列表排序
 - 支持 EN / 中文语言切换
 - 列表循环播放，并自动跟随当前播放项
-- 多音频波形对比
+- 多音频波形对比，先显示快速预览，再更新完整指标
 
 ## 安装
 
@@ -27,7 +27,7 @@ AudioX 是一个 macOS 音频播放器，支持通用音频和 xiaozhi/乐鑫 `.
 
 已打包 App 内置 FFmpeg，不需要安装 Xcode，也不需要单独安装 FFmpeg。
 
-源码运行时，播放 `ogg`, `opus`, `flac`, `p3` 需要安装 FFmpeg：
+源码运行时，播放 `ogg`, `opus`, `flac`, `p3` 和裸 `pcm` 需要安装 FFmpeg：
 
 ```bash
 brew install ffmpeg
@@ -38,6 +38,14 @@ brew install ffmpeg
 打开 AudioX 后，可以导入音频，也可以将文件或文件夹拖入窗口，然后选择音频播放。
 
 点击列表行的波形按钮可加入波形对比。
+
+对于较长音频，AudioX 会先显示轻量级波形预览，完整分析完成后再更新完整波形和指标。
+
+## 样本
+
+`samples/` 中提供了支持格式的样本文件。
+
+这些样本来自 CC0 音频源，包含 `wav`, `mp3`, `m4a`, `aac`, `flac`, `ogg`, `opus`, `p3`, `aiff`, `caf` 和裸 `pcm`。来源见 [samples/SOURCES.md](samples/SOURCES.md)。
 
 ## 开发
 
@@ -54,17 +62,17 @@ scripts/generate_app_icon.sh
 构建带版本号的 DMG：
 
 ```bash
-scripts/package_dmg.sh arm64 --version 1.0.2
-scripts/package_dmg.sh intel --version 1.0.2
-scripts/package_dmg.sh universal --version 1.0.2
+scripts/package_dmg.sh arm64 --version 1.0.4
+scripts/package_dmg.sh intel --version 1.0.4
+scripts/package_dmg.sh universal --version 1.0.4
 ```
 
 输出：
 
 ```text
-dist/AudioX-1.0.2-arm64.dmg
-dist/AudioX-1.0.2-intel.dmg
-dist/AudioX-1.0.2-universal.dmg
+dist/AudioX-1.0.4-arm64.dmg
+dist/AudioX-1.0.4-intel.dmg
+dist/AudioX-1.0.4-universal.dmg
 ```
 
 ## 状态
@@ -73,4 +81,4 @@ AudioX v1 仅支持 macOS。iOS 需要独立 target。
 
 ## 许可
 
-当前尚未选择开源许可证。
+AudioX 使用 [MIT License](LICENSE) 发布。

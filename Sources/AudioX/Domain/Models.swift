@@ -6,6 +6,10 @@ public enum AudioFormat: String, CaseIterable, Codable, Identifiable, Sendable {
     case flac
     case aac
     case m4a
+    case aif
+    case aiff
+    case caf
+    case pcm
     case ogg
     case opus
     case p3
@@ -15,9 +19,9 @@ public enum AudioFormat: String, CaseIterable, Codable, Identifiable, Sendable {
 
     public var isNative: Bool {
         switch self {
-        case .mp3, .wav, .aac, .m4a:
+        case .mp3, .wav, .aac, .m4a, .aif, .aiff, .caf:
             return true
-        case .ogg, .opus, .p3, .flac, .unknown:
+        case .ogg, .opus, .p3, .flac, .pcm, .unknown:
             return false
         }
     }
@@ -29,6 +33,10 @@ public enum AudioFormat: String, CaseIterable, Codable, Identifiable, Sendable {
         case .flac: return "FLAC"
         case .aac: return "AAC"
         case .m4a: return "M4A"
+        case .aif: return "AIFF"
+        case .aiff: return "AIFF"
+        case .caf: return "CAF"
+        case .pcm: return "PCM"
         case .ogg: return "OGG"
         case .opus: return "OPUS"
         case .p3: return "P3 (乐鑫)"
@@ -37,7 +45,12 @@ public enum AudioFormat: String, CaseIterable, Codable, Identifiable, Sendable {
     }
 
     public static var supportedFileExtensions: Set<String> {
-        Set(allCases.map(\.rawValue)).subtracting(["unknown"])
+        [
+            "mp3", "wav", "flac", "aac", "m4a",
+            "aif", "aiff", "caf",
+            "pcm", "raw", "s16le", "s24le", "f32le",
+            "ogg", "opus", "p3"
+        ]
     }
 
     public static func isRecognizedAudioURL(_ url: URL) -> Bool {
@@ -56,6 +69,14 @@ public enum AudioFormat: String, CaseIterable, Codable, Identifiable, Sendable {
             return .aac
         case "m4a":
             return .m4a
+        case "aif":
+            return .aif
+        case "aiff":
+            return .aiff
+        case "caf":
+            return .caf
+        case "pcm", "raw", "s16le", "s24le", "f32le":
+            return .pcm
         case "ogg":
             return .ogg
         case "opus":
@@ -207,7 +228,7 @@ public enum PlayerError: Error, LocalizedError, Sendable {
         case .unsupportedFormat(let format):
             return "不支持的格式：\(format.displayName)"
         case .noDecoderFound:
-            return "没有可用解码器。MP3/WAV/M4A/AAC 可原生播放；OGG/OPUS/FLAC/P3 需要安装 FFmpeg：brew install ffmpeg。"
+            return "没有可用解码器。MP3/WAV/M4A/AAC/AIFF/CAF 可原生播放；OGG/OPUS/FLAC/P3/PCM 需要 FFmpeg（发布版已内置，源码运行请 brew install ffmpeg）。"
         case .decodeFailed(let reason):
             return "解码失败：\(reason)"
         case .playbackUnavailable:

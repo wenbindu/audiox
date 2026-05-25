@@ -12,10 +12,13 @@ final class PlayerViewModel: ObservableObject {
     @Published private(set) var tracks: [AudioTrack] = []
     @Published private(set) var currentTrackID: UUID?
     @Published private(set) var waveforms: [AudioWaveform] = []
+    @Published private(set) var infoItems: [AudioInfoItem] = []
+    @Published private(set) var detailItems: [AudioDetailItem] = []
     @Published private(set) var analyzingTrackIDs: Set<UUID> = []
     @Published private(set) var importStatusText: String = AppText(language: .english).text("app.emptyProject")
     @Published var selectedTrackIDs: Set<UUID> = []
     @Published var comparisonTrackIDs: Set<UUID> = []
+    @Published var infoTrackIDs: Set<UUID> = []
     @Published var sliderValue: Double = 0
     @Published var isLoopEnabled: Bool = true {
         didSet {
@@ -121,24 +124,31 @@ final class PlayerViewModel: ObservableObject {
     func removeSelectedTracks() {
         useCase.removeTracks(ids: selectedTrackIDs)
         comparisonTrackIDs.subtract(selectedTrackIDs)
+        infoTrackIDs.subtract(selectedTrackIDs)
         selectedTrackIDs.removeAll()
         setImportStatus(.removed)
         refreshVisibleWaveforms()
+        refreshVisibleInfoItems()
     }
 
     func removeTracks(at offsets: IndexSet) {
         let ids = Set(offsets.compactMap { tracks[safe: $0]?.id })
         useCase.removeTracks(ids: ids)
         comparisonTrackIDs.subtract(ids)
+        infoTrackIDs.subtract(ids)
         selectedTrackIDs.subtract(ids)
         refreshVisibleWaveforms()
+        refreshVisibleInfoItems()
     }
 
     func clearPlaylist() {
         useCase.clearPlaylist()
         selectedTrackIDs.removeAll()
         comparisonTrackIDs.removeAll()
+        infoTrackIDs.removeAll()
         waveforms = []
+        infoItems = []
+        detailItems = []
         waveformCache = [:]
         waveformTasks.values.forEach { $0.cancel() }
         waveformTasks = [:]
@@ -159,8 +169,24 @@ final class PlayerViewModel: ObservableObject {
         }
 
         comparisonTrackIDs.insert(track.id)
+        infoTrackIDs.remove(track.id)
         analyzeTrackIfNeeded(track)
         refreshVisibleWaveforms()
+        refreshVisibleInfoItems()
+    }
+
+    func toggleInfo(for track: AudioTrack) {
+        if infoTrackIDs.contains(track.id) {
+            infoTrackIDs.remove(track.id)
+            refreshVisibleInfoItems()
+            return
+        }
+
+        infoTrackIDs.insert(track.id)
+        comparisonTrackIDs.remove(track.id)
+        analyzeTrackIfNeeded(track)
+        refreshVisibleWaveforms()
+        refreshVisibleInfoItems()
     }
 
     func dispose() {
@@ -207,7 +233,9 @@ final class PlayerViewModel: ObservableObject {
                 let validIds = Set(tracks.map(\.id))
                 self.selectedTrackIDs = self.selectedTrackIDs.intersection(validIds)
                 self.comparisonTrackIDs = self.comparisonTrackIDs.intersection(validIds)
+                self.infoTrackIDs = self.infoTrackIDs.intersection(validIds)
                 self.refreshVisibleWaveforms()
+                self.refreshVisibleInfoItems()
             }
             .store(in: &cancellables)
 
@@ -268,6 +296,7 @@ final class PlayerViewModel: ObservableObject {
                             metrics: preview.metrics
                         )
                         refreshVisibleWaveforms()
+                        refreshVisibleInfoItems()
                     }
                 )
                 waveformCache[track.id] = AudioWaveform(
@@ -279,6 +308,7 @@ final class PlayerViewModel: ObservableObject {
                 waveformTasks[track.id] = nil
                 analyzingTrackIDs.remove(track.id)
                 refreshVisibleWaveforms()
+                refreshVisibleInfoItems()
             } catch {
                 waveformTasks[track.id] = nil
                 analyzingTrackIDs.remove(track.id)
@@ -320,6 +350,29 @@ final class PlayerViewModel: ObservableObject {
         waveforms = tracks.compactMap { track in
             guard comparisonTrackIDs.contains(track.id) else { return nil }
             return waveformCache[track.id]
+        }
+        refreshVisibleDetailItems()
+    }
+
+    private func refreshVisibleInfoItems() {
+        infoItems = tracks.compactMap { track in
+            guard infoTrackIDs.contains(track.id) else { return nil }
+            return AudioInfoItem(track: track, waveform: waveformCache[track.id])
+        }
+        refreshVisibleDetailItems()
+    }
+
+    private func refreshVisibleDetailItems() {
+        detailItems = tracks.compactMap { track in
+            if comparisonTrackIDs.contains(track.id) {
+                return AudioDetailItem(track: track, kind: .waveform, waveform: waveformCache[track.id])
+            }
+
+            if infoTrackIDs.contains(track.id) {
+                return AudioDetailItem(track: track, kind: .info, waveform: waveformCache[track.id])
+            }
+
+            return nil
         }
     }
 
@@ -417,6 +470,24 @@ final class PlayerViewModel: ObservableObject {
         }
         return nil
     }
+}
+
+enum AudioDetailKind: Equatable {
+    case waveform
+    case info
+}
+
+struct AudioDetailItem: Identifiable, Equatable {
+    var id: UUID { track.id }
+    let track: AudioTrack
+    let kind: AudioDetailKind
+    let waveform: AudioWaveform?
+}
+
+struct AudioInfoItem: Identifiable, Equatable {
+    var id: UUID { track.id }
+    let track: AudioTrack
+    let waveform: AudioWaveform?
 }
 
 private enum ImportStatus {

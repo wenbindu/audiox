@@ -163,6 +163,30 @@ public struct AudioWaveform: Identifiable, Equatable, Sendable {
     }
 }
 
+public struct AudioTechnicalInfo: Equatable, Sendable {
+    public let sampleRate: Double?
+    public let channelCount: Int?
+    public let bitrateKbps: Double?
+    public let codecName: String?
+    public let bitDepth: Int?
+
+    public init(
+        sampleRate: Double? = nil,
+        channelCount: Int? = nil,
+        bitrateKbps: Double? = nil,
+        codecName: String? = nil,
+        bitDepth: Int? = nil
+    ) {
+        self.sampleRate = sampleRate
+        self.channelCount = channelCount
+        self.bitrateKbps = bitrateKbps
+        self.codecName = codecName
+        self.bitDepth = bitDepth
+    }
+
+    public static let empty = AudioTechnicalInfo()
+}
+
 public struct AudioMetrics: Equatable, Sendable {
     public let durationSeconds: Double
     public let peakDBFS: Double
@@ -172,6 +196,7 @@ public struct AudioMetrics: Equatable, Sendable {
     public let crestFactorDB: Double
     public let dynamicRangeDB: Double
     public let snrDB: Double?
+    public let technicalInfo: AudioTechnicalInfo
 
     public init(
         durationSeconds: Double,
@@ -181,7 +206,8 @@ public struct AudioMetrics: Equatable, Sendable {
         momentaryLUFS: Double,
         crestFactorDB: Double,
         dynamicRangeDB: Double,
-        snrDB: Double?
+        snrDB: Double?,
+        technicalInfo: AudioTechnicalInfo = .empty
     ) {
         self.durationSeconds = durationSeconds
         self.peakDBFS = peakDBFS
@@ -191,6 +217,7 @@ public struct AudioMetrics: Equatable, Sendable {
         self.crestFactorDB = crestFactorDB
         self.dynamicRangeDB = dynamicRangeDB
         self.snrDB = snrDB
+        self.technicalInfo = technicalInfo
     }
 
     public static let empty = AudioMetrics(

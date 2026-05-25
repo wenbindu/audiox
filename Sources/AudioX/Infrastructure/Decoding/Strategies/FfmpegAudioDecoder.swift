@@ -29,8 +29,6 @@ struct FfmpegAudioDecoder: AudioDecoderStrategy {
             "-y",
             "-v", "error",
         ] + inputArgs + [
-            "-ac", "2",
-            "-ar", "44100",
             "-c:a", "pcm_s16le",
             output.path
         ]

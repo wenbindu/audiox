@@ -75,8 +75,13 @@ struct ContentView: View {
                             track: track,
                             isCurrent: viewModel.currentTrackID == track.id,
                             isCompared: viewModel.comparisonTrackIDs.contains(track.id),
+                            isInfoSelected: viewModel.infoTrackIDs.contains(track.id),
                             playAction: { viewModel.playTrack(track) },
-                            compareAction: { viewModel.toggleComparison(for: track) }
+                            compareAction: { viewModel.toggleComparison(for: track) },
+                            infoAction: { viewModel.toggleInfo(for: track) },
+                            compareHelp: text.text("help.compare"),
+                            infoHelp: text.text("help.info"),
+                            playHelp: text.text("help.playTrack")
                         )
                         .tag(track.id)
                         .id(track.id)
@@ -191,24 +196,32 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(text.waveformComparison)
+                    Text(text.selectedDetails)
                         .font(.headline)
                     Spacer()
-                    Text(text.waveformStatus(
-                        comparisonCount: viewModel.comparisonTrackIDs.count,
-                        analyzingCount: viewModel.analyzingTrackIDs.count,
-                        waveformCount: viewModel.waveforms.count
-                    ))
+                    Text(detailStatusText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                WaveformComparisonView(waveforms: viewModel.waveforms, emptyText: text.emptyWaveform)
-                    .frame(maxWidth: .infinity, minHeight: 260)
+                AudioDetailPanelView(
+                    items: viewModel.detailItems,
+                    emptyText: text.emptyDetails,
+                    metricText: WaveformMetricText(text: text)
+                )
+                .frame(maxWidth: .infinity, minHeight: 260)
             }
 
         }
         .padding(18)
+    }
+
+    private var detailStatusText: String {
+        let selectedIDs = viewModel.comparisonTrackIDs.union(viewModel.infoTrackIDs)
+        return text.detailStatus(
+            detailCount: selectedIDs.count,
+            analyzingCount: selectedIDs.intersection(viewModel.analyzingTrackIDs).count
+        )
     }
 }
 
@@ -216,8 +229,13 @@ private struct TrackRowView: View {
     let track: AudioTrack
     let isCurrent: Bool
     let isCompared: Bool
+    let isInfoSelected: Bool
     let playAction: () -> Void
     let compareAction: () -> Void
+    let infoAction: () -> Void
+    let compareHelp: String
+    let infoHelp: String
+    let playHelp: String
 
     var body: some View {
         HStack(spacing: 10) {
@@ -237,17 +255,186 @@ private struct TrackRowView: View {
 
             Button(action: compareAction) {
                 Image(systemName: isCompared ? "waveform.path.ecg.rectangle.fill" : "waveform.path.ecg.rectangle")
+                    .foregroundStyle(isCompared ? Color.accentColor : Color.secondary)
             }
             .buttonStyle(.borderless)
-            .help("加入或移出波形对比")
+            .help(compareHelp)
+
+            Button(action: infoAction) {
+                Image(systemName: isInfoSelected ? "info.circle.fill" : "info.circle")
+                    .foregroundStyle(isInfoSelected ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(infoHelp)
 
             Button(action: playAction) {
                 Image(systemName: "play.fill")
             }
             .buttonStyle(.borderless)
-            .help("播放此音频")
+            .help(playHelp)
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct AudioDetailPanelView: View {
+    let items: [AudioDetailItem]
+    let emptyText: String
+    let metricText: WaveformMetricText
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .textBackgroundColor))
+
+            if items.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text(emptyText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                            switch item.kind {
+                            case .waveform:
+                                if let waveform = item.waveform {
+                                    WaveformRowView(waveform: waveform, color: .accentColor)
+                                } else {
+                                    PendingDetailRowView(track: item.track, icon: "waveform.path.ecg.rectangle", status: metricText.analyzing)
+                                }
+                            case .info:
+                                AudioInfoRowView(item: AudioInfoItem(track: item.track, waveform: item.waveform), metricText: metricText)
+                            }
+                            if index < items.count - 1 {
+                                Divider()
+                                    .padding(.horizontal, 12)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct PendingDetailRowView: View {
+    let track: AudioTrack
+    let icon: String
+    let status: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(track.name)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(2)
+                Text(status)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+}
+
+private struct AudioInfoRowView: View {
+    let item: AudioInfoItem
+    let metricText: WaveformMetricText
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+                Text(item.track.name)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(2)
+            }
+
+            HStack(alignment: .top, spacing: 18) {
+                metricColumn(title: metricText.basicTitle, lines: basicLines)
+                metricColumn(title: metricText.fileTitle, lines: fileLines)
+                metricColumn(title: metricText.loudnessTitle, lines: loudnessLines)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    private var basicLines: [MetricLine] {
+        let info = item.waveform?.metrics.technicalInfo ?? .empty
+        return [
+            MetricLine(label: metricText.sampleRate, value: MetricFormat.sampleRate(info.sampleRate)),
+            MetricLine(label: metricText.channels, value: MetricFormat.channels(info.channelCount, text: metricText)),
+            MetricLine(label: metricText.bitrate, value: MetricFormat.bitrate(info.bitrateKbps)),
+            MetricLine(label: metricText.codec, value: info.codecName ?? item.track.format.displayName),
+            MetricLine(label: metricText.bitDepth, value: MetricFormat.bitDepth(info.bitDepth))
+        ]
+    }
+
+    private var fileLines: [MetricLine] {
+        [
+            MetricLine(label: metricText.format, value: item.track.format.displayName),
+            MetricLine(label: metricText.duration, value: MetricFormat.duration(item.waveform?.metrics.durationSeconds)),
+            MetricLine(label: metricText.status, value: item.waveform == nil ? metricText.analyzing : metricText.ready)
+        ]
+    }
+
+    private var loudnessLines: [MetricLine] {
+        guard let metrics = item.waveform?.metrics else {
+            return [
+                MetricLine(label: metricText.momentaryLUFS, value: "-"),
+                MetricLine(label: metricText.rms, value: "-"),
+                MetricLine(label: metricText.peak, value: "-"),
+                MetricLine(label: metricText.crest, value: "-")
+            ]
+        }
+
+        var lines = [
+            MetricLine(label: metricText.momentaryLUFS, value: MetricFormat.db(metrics.momentaryLUFS)),
+            MetricLine(label: metricText.rms, value: MetricFormat.db(metrics.rmsDBFS)),
+            MetricLine(label: metricText.peak, value: MetricFormat.db(metrics.peakDBFS)),
+            MetricLine(label: metricText.crest, value: MetricFormat.db(metrics.crestFactorDB))
+        ]
+        if let snr = metrics.snrDB {
+            lines.append(MetricLine(label: metricText.snr, value: MetricFormat.db(snr)))
+        }
+        return lines
+    }
+
+    private func metricColumn(title: String, lines: [MetricLine]) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color.accentColor)
+
+            ForEach(lines) { line in
+                metricLine(line.label, line.value)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func metricLine(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.primary)
+        }
+        .font(.system(size: 10, weight: .regular, design: .monospaced))
     }
 }
 
@@ -305,25 +492,11 @@ private struct WaveformRowView: View {
     let color: Color
 
     var body: some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text(waveform.trackName)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(color)
-                    .lineLimit(2)
-
-                metricLine("Duration", formatDuration(waveform.metrics.durationSeconds))
-                metricLine("M-LUFS", formatDB(waveform.metrics.momentaryLUFS))
-                metricLine("RMS", formatDB(waveform.metrics.rmsDBFS))
-                metricLine("Peak", formatDB(waveform.metrics.peakDBFS))
-                metricLine("Crest", formatDB(waveform.metrics.crestFactorDB))
-                if let snr = waveform.metrics.snrDB {
-                    metricLine("SNR", formatDB(snr))
-                }
-            }
-            .frame(width: 210, alignment: .leading)
-            .padding(.leading, 14)
-            .padding(.vertical, 12)
+        VStack(alignment: .leading, spacing: 10) {
+            Text(waveform.trackName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(color)
+                .lineLimit(2)
 
             WaveformShape(values: waveform.values)
                 .stroke(color.opacity(0.86), lineWidth: 1)
@@ -332,31 +505,113 @@ private struct WaveformRowView: View {
                         .stroke(Color.secondary.opacity(0.20), lineWidth: 1)
                 )
                 .frame(minHeight: 112)
-                .padding(.trailing, 14)
-                .padding(.vertical, 12)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
+}
 
-    private func metricLine(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.primary)
-        }
-        .font(.system(size: 10, weight: .regular, design: .monospaced))
+private struct MetricLine: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: String
+}
+
+private struct WaveformMetricText {
+    let basicTitle: String
+    let loudnessTitle: String
+    let fileTitle: String
+    let sampleRate: String
+    let channels: String
+    let bitrate: String
+    let codec: String
+    let bitDepth: String
+    let format: String
+    let duration: String
+    let momentaryLUFS: String
+    let rms: String
+    let peak: String
+    let crest: String
+    let snr: String
+    let mono: String
+    let stereo: String
+    let channelCountFormat: String
+    let status: String
+    let analyzing: String
+    let ready: String
+
+    @MainActor
+    init(text: AppText) {
+        basicTitle = text.text("metric.group.basic")
+        loudnessTitle = text.text("metric.group.loudness")
+        fileTitle = text.text("metric.group.file")
+        sampleRate = text.text("metric.sampleRate")
+        channels = text.text("metric.channels")
+        bitrate = text.text("metric.bitrate")
+        codec = text.text("metric.codec")
+        bitDepth = text.text("metric.bitDepth")
+        format = text.text("metric.format")
+        duration = text.text("metric.duration")
+        momentaryLUFS = text.text("metric.momentaryLUFS")
+        rms = text.text("metric.rms")
+        peak = text.text("metric.peak")
+        crest = text.text("metric.crest")
+        snr = text.text("metric.snr")
+        mono = text.text("metric.mono")
+        stereo = text.text("metric.stereo")
+        channelCountFormat = text.text("metric.channels.count")
+        status = text.text("metric.status")
+        analyzing = text.text("metric.status.analyzing")
+        ready = text.text("metric.status.ready")
     }
+}
 
-    private func formatDB(_ value: Double) -> String {
-        String(format: "%.1f dB", value)
-    }
-
-    private func formatDuration(_ value: Double) -> String {
+private enum MetricFormat {
+    static func duration(_ value: Double?) -> String {
+        guard let value, value > 0 else { return "-" }
         if value < 1 {
             return String(format: "%.0f ms", value * 1000)
         }
         return String(format: "%.2f s", value)
+    }
+
+    static func sampleRate(_ value: Double?) -> String {
+        guard let value, value > 0 else { return "-" }
+        let kHz = value / 1_000
+        if value >= 1_000 {
+            return kHz >= 10
+                ? String(format: "%.0f kHz", kHz)
+                : String(format: "%.1f kHz", kHz)
+        }
+        return String(format: "%.0f Hz", value)
+    }
+
+    static func channels(_ count: Int?, text: WaveformMetricText) -> String {
+        guard let count, count > 0 else { return "-" }
+        if count == 1 {
+            return text.mono
+        }
+        if count == 2 {
+            return text.stereo
+        }
+        return String(format: text.channelCountFormat, count)
+    }
+
+    static func bitrate(_ value: Double?) -> String {
+        guard let value, value > 0 else { return "-" }
+        if value >= 1_000 {
+            return String(format: "%.1f Mbps", value / 1_000)
+        }
+        return String(format: "%.0f kbps", value)
+    }
+
+    static func bitDepth(_ value: Int?) -> String {
+        guard let value, value > 0 else { return "-" }
+        return "\(value)-bit"
+    }
+
+    static func db(_ value: Double) -> String {
+        String(format: "%.1f dB", value)
     }
 }
 

@@ -62,6 +62,26 @@ struct AppText {
         return format("waveform.status.ready", waveformCount)
     }
 
+    func detailStatus(detailCount: Int, analyzingCount: Int) -> String {
+        if detailCount == 0 {
+            return text("detail.status.empty")
+        }
+        if analyzingCount > 0 {
+            return format("detail.status.analyzing", detailCount, analyzingCount)
+        }
+        return format("detail.status.ready", detailCount)
+    }
+
+    func infoStatus(infoCount: Int, analyzingCount: Int, readyCount: Int) -> String {
+        if infoCount == 0 {
+            return text("info.status.empty")
+        }
+        if analyzingCount > 0 {
+            return format("info.status.analyzing", infoCount, analyzingCount)
+        }
+        return format("info.status.ready", readyCount)
+    }
+
     func playbackStateDescription(_ state: PlaybackState) -> String {
         switch state {
         case .idle:
@@ -89,6 +109,10 @@ struct AppText {
     var loopToggle: String { text("toggle.loop") }
     var waveformComparison: String { text("waveform.title") }
     var emptyWaveform: String { text("waveform.empty") }
+    var audioInformation: String { text("info.title") }
+    var emptyInformation: String { text("info.empty") }
+    var selectedDetails: String { text("detail.title") }
+    var emptyDetails: String { text("detail.empty") }
     var openAudioMenu: String { text("menu.openAudio") }
     var languageTitle: String { text("language.title") }
 }
@@ -155,12 +179,44 @@ private final class LocalizationStore {
         "help.next": "Next",
         "help.stop": "Stop",
         "help.compare": "Add or remove waveform comparison",
+        "help.info": "Show or hide audio information",
         "help.playTrack": "Play this audio",
         "waveform.title": "Waveform comparison",
         "waveform.empty": "No waveforms",
         "waveform.status.empty": "Not compared",
         "waveform.status.analyzing": "%d selected · %d analyzing",
         "waveform.status.ready": "%d waveform(s)",
+        "info.title": "Audio information",
+        "info.empty": "No audio information selected",
+        "info.status.empty": "No information selected",
+        "info.status.analyzing": "%d selected · %d analyzing",
+        "info.status.ready": "%d item(s)",
+        "detail.title": "Selected details",
+        "detail.empty": "Select waveform or info on the left",
+        "detail.status.empty": "Nothing selected",
+        "detail.status.analyzing": "%d selected · %d analyzing",
+        "detail.status.ready": "%d selected",
+        "metric.group.basic": "Basic",
+        "metric.group.loudness": "Loudness",
+        "metric.group.file": "File",
+        "metric.sampleRate": "Sample Rate",
+        "metric.channels": "Channels",
+        "metric.bitrate": "Bitrate",
+        "metric.codec": "Codec",
+        "metric.bitDepth": "Bit Depth",
+        "metric.format": "Format",
+        "metric.duration": "Duration",
+        "metric.momentaryLUFS": "M-LUFS",
+        "metric.rms": "RMS",
+        "metric.peak": "Peak",
+        "metric.crest": "Crest",
+        "metric.snr": "SNR",
+        "metric.mono": "Mono",
+        "metric.stereo": "Stereo",
+        "metric.channels.count": "%d ch",
+        "metric.status": "Status",
+        "metric.status.analyzing": "Analyzing",
+        "metric.status.ready": "Ready",
         "menu.openAudio": "Open Audio...",
         "language.title": "Language",
         "state.idle": "Idle",
